@@ -2,19 +2,32 @@ import { File } from 'buffer';
 import * as vscode from 'vscode';
 
 export class AndroidDeviceProvider implements vscode.TreeDataProvider<AndroidFsItem> {
-    onDidChangeTreeData?: vscode.Event<any> | undefined;
+
+    private _selectedDevice: string | undefined = undefined;
+    constructor() {
+        this.selectDevice();
+    }
 
     getTreeItem(element: AndroidFsItem): vscode.TreeItem | Thenable<vscode.TreeItem> {
         return element;
     }
 
     getChildren(element?: any): Thenable<AndroidFsItem[]> {
+
+        if(this._selectedDevice === undefined) {
+            return Promise.resolve([]);
+        }
+
 		const spawn = require('child_process').spawnSync;
 
         var fullPath = element ? element.getFullPath() : '';
         var lsProcess = spawn('/home/gallottino/Android/Sdk/platform-tools/adb' , ['shell','ls', fullPath, '-l']);
-
 		var fileInfos = parseLsOutput(lsProcess.stdout.toString());
+        
+        if(this._selectedDevice === undefined) {
+            
+        }
+        
         return Promise.resolve(
             
             fileInfos.map((item: FileInfo) => {
@@ -31,6 +44,20 @@ export class AndroidDeviceProvider implements vscode.TreeDataProvider<AndroidFsI
         throw new Error('Method not implemented.');
     }
 
+    selectDevice(): void {
+        const spawn = require('child_process').spawnSync;
+        var devices = spawn('adb', ['devices']).stdout.toString();
+
+        if(devices.length === 0) {
+            this._selectedDevice = undefined;
+            vscode.window.showErrorMessage('Nessun device trovato');
+        }
+        else {
+            vscode.window.showQuickPick(devices, {placeHolder: 'Seleziona un device'}).then((value) => {
+                this._selectedDevice = value;
+            });
+        }
+    }
 }
 
 export class AndroidFsItem extends vscode.TreeItem {
